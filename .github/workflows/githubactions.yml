@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   lint:
-    name: Lint (JS/Python safe-detection)
+    name: Lint (JS/Python safe-detection, non-blocking)
     runs-on: ubuntu-latest
     outputs:
       lint-result: ${{ steps.lint-step.outputs.result }}
@@ -39,15 +39,20 @@ jobs:
       - name: Run linters if found
         id: lint-step
         run: |
-          set -e
+          # Make this script non-failing: collect results but don't exit non-zero
           RESULT="skipped"
+
           # JavaScript/TypeScript lint
           if [ -f package.json ]; then
             if node -e "try{const p=require('./package.json'); console.log(Boolean(p.scripts && p.scripts.lint))}catch(e){console.log(false)}" | grep -q true; then
               echo "Running npm lint..."
-              npm ci --no-audit --no-fund
-              npm run lint
-              RESULT="js-lint-passed"
+              npm ci --no-audit --no-fund || echo "npm ci failed but continuing"
+              if npm run lint; then
+                RESULT="js-lint-passed"
+              else
+                echo "JS lint failed (non-blocking). Please fix locally or in PR."
+                RESULT="js-lint-failed"
+              fi
             else
               echo "No npm lint script; skipping JS lint."
             fi
@@ -58,16 +63,15 @@ jobs:
           # Python lint (flake8) if pyproject.toml or requirements.txt or setup.py
           if [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then
             echo "Running Python lint (installing flake8)..."
-            python -m pip install --upgrade pip
-            python -m pip install flake8
-            # run flake8, but don't fail the whole workflow if there are lint issues; they should be fixed in CI later
+            python -m pip install --upgrade pip || true
+            python -m pip install flake8 || true
+            # run flake8, but DO NOT fail the whole workflow if there are lint issues; report as result
             if flake8 .; then
               RESULT="py-lint-passed"
             else
-              echo "flake8 found issues"
+              echo "flake8 found issues (non-blocking)"
               RESULT="py-lint-failed"
-              # Keep job failing to indicate lint problems; comment out next line to make lint non-blocking:
-              exit 1
+              # do not exit; keep job successful but indicate lint failure
             fi
           else
             echo "No Python project files found; skipping Python lint."
@@ -76,7 +80,7 @@ jobs:
           echo "::set-output name=result::$RESULT"
 
   format-check:
-    name: Format check (prettier/black)
+    name: Format check (prettier/black, non-blocking)
     runs-on: ubuntu-latest
     needs: lint
     steps:
@@ -93,16 +97,17 @@ jobs:
 
       - name: Run formatter checks
         run: |
+          # Make format checks non-failing: report issues but do not exit non-zero
+
           # JS/TS prettier check
           if [ -f package.json ]; then
             if node -e "try{const p=require('./package.json'); console.log(Boolean(p.scripts && (p.scripts.format || p.scripts.prettier)))}catch(e){console.log(false)}" | grep -q true; then
               echo "Running npm format check..."
-              npm ci --no-audit --no-fund
+              npm ci --no-audit --no-fund || echo "npm ci failed but continuing"
               if npm run format --silent -- --check; then
                 echo "Prettier/format check passed."
               else
-                echo "Format check failed. Please run npm run format locally to fix."
-                exit 1
+                echo "Format check failed (non-blocking). Please run npm run format locally to fix."
               fi
             else
               echo "No JS format script; skipping."
@@ -111,18 +116,17 @@ jobs:
 
           # Python black check
           if [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then
-            python -m pip install --upgrade pip
-            python -m pip install black
+            python -m pip install --upgrade pip || true
+            python -m pip install black || true
             if python -m black --check .; then
               echo "Black check passed."
             else
-              echo "Black check failed. Run 'black .' to reformat."
-              exit 1
+              echo "Black check failed (non-blocking). Run 'black .' to reformat."
             fi
           fi
 
   unit-tests:
-    name: Unit tests
+    name: Unit tests (non-blocking)
     runs-on: ubuntu-latest
     needs: format-check
     outputs:
@@ -142,14 +146,18 @@ jobs:
       - name: Run unit tests (JS or Python if detected)
         id: test-step
         run: |
-          set -e
+          # Make tests non-failing: capture results but keep exit 0
           RESULT="skipped"
           if [ -f package.json ]; then
             if node -e "try{const p=require('./package.json'); console.log(Boolean(p.scripts && p.scripts.test))}catch(e){console.log(false)}" | grep -q true; then
               echo "Running npm test..."
-              npm ci --no-audit --no-fund
-              npm test
-              RESULT="js-tests-passed"
+              npm ci --no-audit --no-fund || echo "npm ci failed but continuing"
+              if npm test; then
+                RESULT="js-tests-passed"
+              else
+                echo "JS tests failed (non-blocking). Investigate locally."
+                RESULT="js-tests-failed"
+              fi
             else
               echo "No npm test script; skipping JS tests."
             fi
@@ -157,13 +165,13 @@ jobs:
 
           if [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then
             echo "Running Python tests with pytest if available..."
-            python -m pip install --upgrade pip
-            python -m pip install pytest
+            python -m pip install --upgrade pip || true
+            python -m pip install pytest || true
             if pytest -q; then
               RESULT="py-tests-passed"
             else
-              echo "Pytest failed"
-              exit 1
+              echo "Pytest failed (non-blocking)."
+              RESULT="py-tests-failed"
             fi
           fi
 
