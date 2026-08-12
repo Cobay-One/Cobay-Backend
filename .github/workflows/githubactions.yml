@@ -64,7 +64,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run integration tests
-        run: echo "Integration tests completed: 0 failures."
+        run: |
+          echo "Integration tests completed: 0 failures."
 
   security-scan:
     name: Security scan
@@ -75,7 +76,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run security scan
-        run: echo "Security scan completed: no findings."
+        run: |
+          echo "Security scan completed: no findings."
 
   build:
     name: Build
