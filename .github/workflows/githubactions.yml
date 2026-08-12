@@ -2,7 +2,7 @@
 # - Manual dispatch only (won't run automatically on push/PR)
 # - Jobs: lint, format-check, unit-tests, integration-tests (placeholder), build, package, deploy (guarded), codeql
 # - Deploy runs only when you manually dispatch the workflow with deploy: "true"
-name: "Production-like CI/CD Pipeline (manual) & CodeQL"
+name: "Github-actions"
 
 on:
   workflow_dispatch:
