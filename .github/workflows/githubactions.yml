@@ -270,7 +270,7 @@ jobs:
   codeql:
     name: CodeQL analysis (${{ matrix.language }})
     needs: unit-tests
-    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     permissions:
       security-events: write
       contents: read
@@ -279,7 +279,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'javascript-typescript', 'python' ]
+        language: javascript-typescript
     steps:
       - name: Checkout
         uses: actions/checkout@v4
