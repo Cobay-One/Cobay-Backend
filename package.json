@@ -1,0 +1,18 @@
+{
+  "name": "cobay-backend",
+  "version": "1.0.0",
+  "description": "Cobay backend service modules (domain, services, repositories, utilities).",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "eslint": "^9.15.0",
+    "globals": "^15.12.0"
+  }
+}
