@@ -13,6 +13,7 @@ export default [
       sourceType: "module",
       globals: {
         ...globals.node,
+        fetch: "readonly",
       },
     },
     rules: {
